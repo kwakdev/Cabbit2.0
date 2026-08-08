@@ -22,7 +22,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/cabbit-field-service-api
           tags: type=sha
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with: { context: api, push: true, tags: "${{ steps.meta.outputs.tags }}" }
   deploy:
     needs: image
