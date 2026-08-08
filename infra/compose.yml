@@ -1,0 +1,168 @@
+name: cabbit-field-service
+
+x-logging: &default-logging
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    profiles: [public]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      APP_HOSTNAME: ${APP_HOSTNAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [proxy, application]
+    depends_on:
+      api: { condition: service_healthy }
+    cpus: 0.50
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    logging: *default-logging
+
+  api:
+    build:
+      context: ../api
+      args: { APP_VERSION: "${APP_VERSION:-dev}" }
+    image: ${API_IMAGE:-cabbit-field-service-api}:${APP_VERSION:-dev}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: production
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=${SQLSERVER_DATABASE};encrypt=true;trustServerCertificate=true
+      DB_USERNAME: sa
+      SQLSERVER_PASSWORD: ${SQLSERVER_PASSWORD}
+      APP_JWT_SECRET: ${JWT_SECRET}
+      APP_CORS_ORIGINS: ${APP_CORS_ORIGINS}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    expose: ["8080"]
+    ports: ["127.0.0.1:8080:8080"]
+    networks: [application, monitoring]
+    depends_on:
+      sqlserver: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    cpus: 1.50
+    mem_limit: 1536m
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    logging: *default-logging
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${SQLSERVER_PASSWORD}
+      MSSQL_MEMORY_LIMIT_MB: 4096
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+      - backups:/var/opt/mssql/backups
+    networks: [application]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 45s
+    cpus: 2.00
+    mem_limit: 5g
+    logging: *default-logging
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes: [minio_data:/data]
+    expose: ["9000", "9001"]
+    networks: [application]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    cpus: 0.75
+    mem_limit: 768m
+    logging: *default-logging
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-04-16T18-13-26Z
+    restart: "no"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    entrypoint: ["/bin/sh", "-c", "until mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\"; do sleep 2; done; mc mb --ignore-existing local/\"$$MINIO_BUCKET\"; mc anonymous set none local/\"$$MINIO_BUCKET\"; mc ilm rule add --expire-days 30 local/\"$$MINIO_BUCKET\"/thumbnails || true"]
+    networks: [application]
+    depends_on:
+      minio: { condition: service_healthy }
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    restart: unless-stopped
+    volumes: [uptime_data:/app/data]
+    ports: ["127.0.0.1:3001:3001"]
+    networks: [monitoring, proxy]
+    cpus: 0.25
+    mem_limit: 256m
+    security_opt: [no-new-privileges:true]
+    logging: *default-logging
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    networks: [monitoring]
+    cpus: 0.50
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    logging: *default-logging
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3000
+    volumes: [grafana_data:/var/lib/grafana]
+    ports: ["127.0.0.1:3000:3000"]
+    networks: [monitoring]
+    cpus: 0.50
+    mem_limit: 512m
+    security_opt: [no-new-privileges:true]
+    logging: *default-logging
+
+networks:
+  proxy: {}
+  application: { internal: true }
+  monitoring: { internal: true }
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
+  sqlserver_data: {}
+  minio_data: {}
+  uptime_data: {}
+  prometheus_data: {}
+  grafana_data: {}
+  backups: {}

@@ -1,0 +1,14 @@
+import React, { useState } from 'react';
+import { Modal, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import * as Crypto from 'expo-crypto';
+import { ResourceList } from '@/ResourceList';
+import { Button, Field } from '@/components';
+import { queue } from '@/db';
+import { synchronize } from '@/sync';
+import { useAuth } from '@/store';
+import { theme } from '@/theme';
+const names:Record<string,string>={'customers':'Customers','locations':'Locations','checklist-templates':'Checklist templates','materials':'Materials','equipment':'Equipment','incidents':'Incidents','assignments':'Schedule','settings':'Company settings'};
+export default function ResourceScreen(){const {type}=useLocalSearchParams<{type:string}>();const resource=type??'customers';const role=useAuth(s=>s.session?.user.role);const canAdd=role==='ADMINISTRATOR'||role==='MANAGER'||resource==='incidents';const [open,setOpen]=useState(false);const [name,setName]=useState('');const [description,setDescription]=useState('');function save(){const id=Crypto.randomUUID();const data:Record<string,unknown>={name:name.trim()||undefined,title:name.trim()||undefined,description:description.trim()||undefined};if(resource==='incidents'){data.severity='MEDIUM';data.status='OPEN';}queue({operationId:Crypto.randomUUID(),entityType:resource,entityId:id,action:'CREATE',localTimestamp:new Date().toISOString(),payload:data});setOpen(false);setName('');setDescription('');synchronize().catch(()=>undefined);}return <SafeAreaView style={{flex:1}}><Stack.Screen options={{title:names[resource]??resource}}/><ResourceList type={resource} title={names[resource]??resource}/>{canAdd&&<View style={s.fab}><Button label="Add new" onPress={()=>setOpen(true)}/></View>}<Modal visible={open} animationType="slide" presentationStyle="pageSheet" onRequestClose={()=>setOpen(false)}><SafeAreaView style={s.modal}><ScrollView contentContainerStyle={s.form}><Text style={s.title}>New {singular(names[resource]??resource)}</Text><Field label={resource==='incidents'?'Summary':'Name'} value={name} onChangeText={setName}/><Field label="Details" value={description} onChangeText={setDescription} multiline style={{minHeight:110,textAlignVertical:'top'}}/><Button label="Save" onPress={save} disabled={!name.trim()}/><Button label="Cancel" onPress={()=>setOpen(false)} variant="secondary"/></ScrollView></SafeAreaView></Modal></SafeAreaView>}
+function singular(value:string){return value.endsWith('ies')?value.slice(0,-3)+'y':value.endsWith('s')?value.slice(0,-1):value;}
+const s=StyleSheet.create({fab:{position:'absolute',right:20,bottom:20},modal:{flex:1,backgroundColor:theme.colors.cream},form:{padding:24,gap:16},title:{fontSize:30,fontWeight:'900',color:theme.colors.ink}});

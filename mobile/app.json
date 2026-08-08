@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "Cabbit Field Service",
+    "slug": "cabbit-field-service",
+    "scheme": "cabbit",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "ca.cabbit.fieldservice",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Capture job, completion, receipt and incident photos.",
+        "NSPhotoLibraryUsageDescription": "Attach existing photos to field-service records."
+      }
+    },
+    "android": {
+      "package": "ca.cabbit.fieldservice",
+      "permissions": [
+        "CAMERA",
+        "POST_NOTIFICATIONS"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#12372A"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Attach photos to a job.",
+          "cameraPermission": "Capture photos for a job."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "assignments"
+        }
+      ],
+      "expo-font",
+      "expo-status-bar"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "extra": {
+      "apiUrl": "http://10.0.2.2:8080/api/v1",
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      }
+    }
+  }
+}

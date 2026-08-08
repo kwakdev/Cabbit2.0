@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: cabbit-field-service-api
+  datasource:
+    url: ${DB_URL:jdbc:h2:file:./data/fieldservice;MODE=MSSQLServer;DATABASE_TO_LOWER=TRUE}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: 2
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 16MB
+server:
+  port: 8080
+  forward-headers-strategy: framework
+  error:
+    include-message: never
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+logging:
+  structured:
+    format:
+      console: ecs
+springdoc:
+  swagger-ui:
+    operationsSorter: alpha
+    tagsSorter: alpha
+app:
+  jwt-secret: ${APP_JWT_SECRET:local-development-secret-change-me-now-1234567890}
+  access-token-minutes: ${APP_ACCESS_TOKEN_MINUTES:15}
+  refresh-token-days: ${APP_REFRESH_TOKEN_DAYS:30}
+  cors-origins: ${APP_CORS_ORIGINS:http://localhost:8081,http://localhost:19006}
+  minio-endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  minio-access-key: ${MINIO_ROOT_USER:fieldservice}
+  minio-secret-key: ${MINIO_ROOT_PASSWORD:local-minio-password}
+  minio-bucket: ${MINIO_BUCKET:field-service-photos}
+  max-upload-bytes: ${MAX_UPLOAD_BYTES:15728640}
+  production: ${APP_PRODUCTION:false}
+  bootstrap-email: ${BOOTSTRAP_ADMIN_EMAIL:admin@cabbit.local}
+  bootstrap-password: ${BOOTSTRAP_ADMIN_PASSWORD:ChangeMe123!}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: production
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://sqlserver:1433;databaseName=fieldservice;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${SQLSERVER_PASSWORD}
+app:
+  production: true
+

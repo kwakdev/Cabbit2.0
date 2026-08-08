@@ -1,0 +1,8 @@
+import React, { useState } from 'react';
+import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { api } from '@/api';
+import { Button, Field } from '@/components';
+import { useAuth } from '@/store';
+import { theme } from '@/theme';
+export default function ChangePassword(){const logout=useAuth(s=>s.logout);const [current,setCurrent]=useState('');const [next,setNext]=useState('');const [confirm,setConfirm]=useState('');const [error,setError]=useState('');const [busy,setBusy]=useState(false);async function save(){if(next!==confirm){setError('New passwords do not match');return;}setBusy(true);setError('');try{await api.changePassword(current,next);await logout();}catch(e){setError(e instanceof Error?e.message:'Could not change password');}finally{setBusy(false);}}return <SafeAreaView style={s.screen}><View style={s.content}><Text style={s.title}>Choose a private password</Text><Text style={s.copy}>Use at least 12 characters with uppercase, lowercase and a number. All other sessions will be signed out.</Text><Field label="Temporary password" secureTextEntry value={current} onChangeText={setCurrent}/><Field label="New password" secureTextEntry value={next} onChangeText={setNext}/><Field label="Confirm new password" secureTextEntry value={confirm} onChangeText={setConfirm}/>{error?<Text style={s.error}>{error}</Text>:null}<Button label={busy?'Saving…':'Change password'} onPress={save} disabled={busy||next.length<12}/></View></SafeAreaView>}
+const s=StyleSheet.create({screen:{flex:1,backgroundColor:theme.colors.cream},content:{padding:24,gap:16},title:{fontSize:30,fontWeight:'900',color:theme.colors.ink},copy:{color:theme.colors.muted,lineHeight:21},error:{color:theme.colors.red}});
