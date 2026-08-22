@@ -5,7 +5,7 @@ RUN mvn -B dependency:go-offline
 COPY src src
 RUN mvn -B -DskipTests package
 
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:22-jre-jammy
 ARG APP_VERSION=dev
 LABEL org.opencontainers.image.title="Cabbit Field Service API" org.opencontainers.image.version="${APP_VERSION}"
 RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
